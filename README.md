@@ -1,6 +1,3 @@
-Voici le contenu du fichier `README.md` pour votre dépôt GitHub, avec des emojis pour le rendre plus attrayant.
-
-```markdown
 # DM All Bot by @Sparkle | kda_delta (discord)
 
 ![DM All Bot](https://img.shields.io/badge/DM%20All%20Bot-v1.0-blue.svg)

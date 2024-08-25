@@ -1,7 +1,3 @@
-Bien sûr, voici le message exact en anglais, prêt à être utilisé :
-
----
-
 # DM All Bot by @Sparkle | kda_delta (discord)
 
 ![DM All Bot](https://img.shields.io/badge/DM%20All%20Bot-v1.0-blue.svg)

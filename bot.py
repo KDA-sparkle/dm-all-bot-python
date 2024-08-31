@@ -14,7 +14,6 @@ excluded_members = config.get('excluded_members', [])
 # Configurer les intentions du bot
 intents = discord.Intents.default()
 intents.members = True
-intents.message_content = True
 
 client = discord.Client(intents=intents)
 

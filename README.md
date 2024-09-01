@@ -1,25 +1,39 @@
-# DM All Bot by @Sparkle | kda_delta (discord)
+# DM All Bot by @Sparkle | kda_delta (Discord)
 
-![DM All Bot](https://img.shields.io/badge/DM%20All%20Bot-v1.0-blue.svg)
+![Version](https://img.shields.io/badge/Version-1.0-blue.svg)
+![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)
+![License](https://img.shields.io/github/license/KDA-sparkle/DM-All-Bot.svg)
+![Issues](https://img.shields.io/github/issues/KDA-sparkle/DM-All-Bot.svg)
+![Forks](https://img.shields.io/github/forks/KDA-sparkle/DM-All-Bot.svg)
+![Stars](https://img.shields.io/github/stars/KDA-sparkle/DM-All-Bot.svg)
+![Contributors](https://img.shields.io/github/contributors/KDA-sparkle/DM-All-Bot.svg)
+![Last Commit](https://img.shields.io/github/last-commit/KDA-sparkle/DM-All-Bot.svg)
 
 ## 📜 Introduction
 
-**DM All Bot** is a Python Discord bot developed for educational purposes to send direct messages to all members in a Discord server. The bot provides various commands to manage exclusions and send messages to multiple servers. Note that any misuse of this bot is not the responsibility of the creator.
+**DM All Bot** is a Python Discord bot developed for educational purposes to send direct messages to all members in a Discord server. The bot provides various commands to manage exclusions, send messages to multiple servers, and ensure that users do not receive duplicate messages. It also includes interactive confirmation before sending messages, making it safer to use. Note that any misuse of this bot is not the responsibility of the creator.
 
 ## ✨ Features
 
-- Send direct messages to all members of a specified server.
-- Send direct messages to all members in all servers.
-- Exclude specific roles or members from receiving messages.
-- List excluded roles and members.
-- List all servers the bot is in.
+- **Direct Messaging**:
+  - Send direct messages to all members of a specified server.
+  - Send direct messages to all members in all servers.
+  - Interactive confirmation before sending messages to prevent accidental mass messaging.
+  - Prevent duplicate messages by tracking users who have already received a message during the session.
+  
+- **Exclusion Management**:
+  - Exclude specific roles or members from receiving messages.
+  - List excluded roles and members.
+
+- **Server Information**:
+  - List all servers the bot is in, with invite links where applicable.
 
 ## ⚙️ Commands
 
 ### Message Commands
 
-- **`!dm <server_id> <message>`**: Send a direct message to all members of the specified server.
-- **`!dmall <message>`**: Send a direct message to all members of all servers.
+- **`!dm <server_id> <message>`**: Send a direct message to all members of the specified server after confirmation.
+- **`!dmall <message>`**: Send a direct message to all members in all servers after confirmation.
 
 ### Exclusion Commands
 

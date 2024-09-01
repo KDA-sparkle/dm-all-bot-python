@@ -2,20 +2,23 @@ import discord
 import json
 import asyncio
 
-# Charger le fichier de configuration
+# Load the configuration file
 with open('config.json') as config_file:
     config = json.load(config_file)
 
-# Récupérer le token et les listes d'exclusion
+# Retrieve the token and exclusion lists
 TOKEN = config.get('token')
 excluded_roles = config.get('excluded_roles', [])
 excluded_members = config.get('excluded_members', [])
 
-# Configurer les intentions du bot
+# Set up the bot's intents
 intents = discord.Intents.default()
 intents.members = True
 
 client = discord.Client(intents=intents)
+
+# Set to track users who have already received a DM
+messaged_users = set()
 
 @client.event
 async def on_ready():
@@ -26,54 +29,54 @@ async def on_message(message):
     if message.author == client.user:
         return
 
-    if message.content.startswith('!dm '):
+    if message.content.startswith('!dm ') or message.content.startswith('!dmall '):
         args = message.content.split(' ')[1:]
-        if len(args) < 2:
-            await message.channel.send("Usage: `!dm <server_id> <message>`")
+        is_dm_all = message.content.startswith('!dmall')
+
+        if (is_dm_all and len(args) < 1) or (not is_dm_all and len(args) < 2):
+            await message.channel.send(f"Usage: `{'!dmall <message>' if is_dm_all else '!dm <server_id> <message>'}`")
             return
 
-        guild_id = args[0]
-        msg_to_send = ' '.join(args[1:])
-        guild = client.get_guild(int(guild_id))
-        if not guild:
-            await message.channel.send("Guild not found.")
-            return
+        msg_to_send = ' '.join(args[1:]) if not is_dm_all else ' '.join(args)
+        embed = discord.Embed(
+            title="Send Confirmation",
+            description=f"Are you sure you want to send the following message as a DM?\n\n**Message:**\n{msg_to_send}\n\n*Note: The message will be sent without embed in the DMs.*",
+            color=0xFF69B4  # Pink color
+        )
 
-        try:
-            members = await guild.fetch_members(limit=None).flatten()
-            for member in members:
-                if not member.bot and not any(role.id in excluded_roles for role in member.roles) and member.id not in excluded_members:
-                    try:
-                        await member.send(msg_to_send)
-                        await asyncio.sleep(2)  # Pause de 2 secondes entre chaque message
-                    except Exception as e:
-                        print(f"Could not send message to {member}: {e}")
-            await message.channel.send("Messages sent!")
-        except Exception as e:
-            print(e)
-            await message.channel.send("An error occurred while fetching members.")
+        # Create confirmation buttons
+        confirm_button = discord.ui.Button(label='Accept', style=discord.ButtonStyle.success, custom_id='confirm')
+        cancel_button = discord.ui.Button(label='Reject', style=discord.ButtonStyle.danger, custom_id='cancel')
+        view = discord.ui.View()
+        view.add_item(confirm_button)
+        view.add_item(cancel_button)
 
-    elif message.content.startswith('!dmall '):
-        args = message.content.split(' ')[1:]
-        if len(args) < 1:
-            await message.channel.send("Usage: `!dmall <message>`")
-            return
+        # Send confirmation message
+        confirmation_message = await message.channel.send(embed=embed, view=view)
 
-        msg_to_send = ' '.join(args)
+        async def handle_interaction(interaction):
+            if interaction.user.id != message.author.id:
+                await interaction.response.send_message("You're not allowed to confirm this action.", ephemeral=True)
+                return
 
-        try:
-            for guild in client.guilds:
-                async for member in guild.fetch_members(limit=None):
-                    if not member.bot and not any(role.id in excluded_roles for role in member.roles) and member.id not in excluded_members:
-                        try:
-                            await member.send(msg_to_send)
-                            await asyncio.sleep(2)  # Pause de 2 secondes entre chaque message
-                        except Exception as e:
-                            print(f"Could not send message to {member}: {e}")
-            await message.channel.send("Messages sent to all members in all servers!")
-        except Exception as e:
-            print(e)
-            await message.channel.send("An error occurred while fetching members.")
+            if interaction.custom_id == 'confirm':
+                await interaction.response.edit_message(content='Message confirmed. Sending...', view=None)
+
+                if is_dm_all:
+                    await send_dms_to_all_guilds(message, msg_to_send)
+                else:
+                    guild_id = args[0]
+                    guild = client.get_guild(int(guild_id))
+                    if not guild:
+                        await message.channel.send("Guild not found.")
+                        return
+                    await send_dms_to_guild(message, guild, msg_to_send)
+
+                await message.channel.send(f"{message.author.mention}, the messages have been successfully sent!")
+            elif interaction.custom_id == 'cancel':
+                await interaction.response.edit_message(content='Sending canceled. Please rewrite your message.', view=None)
+
+        view.interaction_check = handle_interaction
 
     elif message.content.startswith('!addrole '):
         args = message.content.split(' ')
@@ -118,7 +121,7 @@ async def on_message(message):
             await message.channel.send("Excluded Members:\n" + "\n".join(members))
 
     elif message.content == '!servers':
-        embed = discord.Embed(title="Servers", color=0xFF69B4)  # Couleur rose
+        embed = discord.Embed(title="Servers", color=0xFF69B4)  # Pink color
 
         for guild in client.guilds:
             try:
@@ -134,18 +137,60 @@ async def on_message(message):
         await message.channel.send(embed=embed)
 
     elif message.content == '!help':
-        embed = discord.Embed(title="Help", description=(
-            "Available commands:\n\n"
-            "`!dm <server_id> <message>` - Send a direct message to all members of the specified server.\n"
-            "`!dmall <message>` - Send a direct message to all members of all servers.\n"
-            "`!addrole <role_id>` - Add a role to the exclusion list.\n"
-            "`!addmember <member_id>` - Add a member to the exclusion list.\n"
-            "`!roles` - List all roles in the exclusion list.\n"
-            "`!members` - List all members in the exclusion list.\n"
-            "`!servers` - List all servers the bot is in.\n"
-            "`!help` - Display this help message."
-        ), color=0xFF69B4)  # Couleur rose
+        embed = discord.Embed(
+            title="Help",
+            description=(
+                "Available commands:\n\n"
+                "`!dm <server_id> <message>` - Send a direct message to all members of the specified server.\n"
+                "`!dmall <message>` - Send a direct message to all members of all servers.\n"
+                "`!addrole <role_id>` - Add a role to the exclusion list.\n"
+                "`!addmember <member_id>` - Add a member to the exclusion list.\n"
+                "`!roles` - List all roles in the exclusion list.\n"
+                "`!members` - List all members in the exclusion list.\n"
+                "`!servers` - List all servers the bot is in.\n"
+                "`!help` - Display this help message."
+            ),
+            color=0xFF69B4  # Pink color
+        )
         await message.channel.send(embed=embed)
+
+async def send_dm(member, msg_to_send):
+    if member.id in messaged_users:
+        print(f"Message not sent to {member} (ID: {member.id}) because they have already received a message.")
+        return
+
+    try:
+        await member.send(msg_to_send)
+        print(f"Message sent to {member} (ID: {member.id}): {msg_to_send}")
+        messaged_users.add(member.id)  # Add user to the set after sending the message
+        await asyncio.sleep(2)  # Pause of 2 seconds between each message
+    except Exception as e:
+        if isinstance(e, discord.Forbidden):
+            print(f"Cannot send message to {member} (DMs disabled or bot blocked).")
+        else:
+            print(f"Could not send message to {member}: {e}")
+
+async def send_dms_to_guild(message, guild, msg_to_send):
+    await message.channel.send(f"{message.author.mention}, starting to send messages to members of the server {guild.name}...")
+    try:
+        members = await guild.fetch_members(limit=None).flatten()
+        for member in members:
+            if not member.bot and not any(role.id in excluded_roles for role in member.roles) and member.id not in excluded_members:
+                await send_dm(member, msg_to_send)
+        await message.channel.send(f"{message.author.mention}, the messages have been sent to the members of the server {guild.name}.")
+    except Exception as e:
+        print(e)
+        await message.channel.send(f"{message.author.mention}, an error occurred while sending the messages.")
+
+async def send_dms_to_all_guilds(message, msg_to_send):
+    await message.channel.send(f"{message.author.mention}, starting to send messages to all members in all servers...")
+    try:
+        for guild in client.guilds:
+            await send_dms_to_guild(message, guild, msg_to_send)
+        await message.channel.send(f"{message.author.mention}, the messages have been sent to all members in all servers.")
+    except Exception as e:
+        print(e)
+        await message.channel.send(f"{message.author.mention}, an error occurred while sending the messages.")
 
 def save_config():
     with open('config.json', 'w') as config_file:
